@@ -1,0 +1,16 @@
+{
+  "name": "bim",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@mapbox/node-pre-gyp": "^2.0.0",
+    "@tensorflow/tfjs-node": "^4.10.0",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.33.5",
+    "util": "^0.12.5"
+  }
+}
