@@ -6,12 +6,12 @@ const path = require("path");
 // ===================== 配置参数 =====================
 const SCALE_FACTOR = 4;
 const OUTPUT_DIR = {
-  TEST_X: "./data/test/X/",
-  TEST_OFFSET: "./data/test/offset/",
-  TEST_Y: "./data/test/Y/",
+  TRAIN_X: "./data/train/X/",
+  TRAIN_OFFSET: "./data/train/offset/",
+  TRAIN_Y: "./data/train/Y/",
 };
-const RAW_HR_DIR = "../public/data/raw/DIV2K_test_HR/";
-const METADATA_PATH = path.join(OUTPUT_DIR.TEST_X, "../metadata.json"); // 元数据路径
+const RAW_HR_DIR = "./data/raw/DIV2K_train_HR/";
+const METADATA_PATH = path.join(OUTPUT_DIR.TRAIN_X, "../metadata.json"); // 元数据路径
 // ===================== 新增元数据工具方法 =====================
 async function updateMetadata(sampleId, H_lr, W_lr, H_sr, W_sr) {
   // 读取现有元数据或初始化空对象
@@ -207,7 +207,7 @@ class DataSaver {
 // ===================== 修改后的主处理流程 =====================
 async function processImages() {
   // 初始化目录
-  [OUTPUT_DIR.TEST_X, OUTPUT_DIR.TEST_OFFSET, OUTPUT_DIR.TEST_Y].forEach(
+  [OUTPUT_DIR.TRAIN_X, OUTPUT_DIR.TRAIN_OFFSET, OUTPUT_DIR.TRAIN_Y].forEach(
     (dir) => {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     }
@@ -254,19 +254,19 @@ async function processImages() {
       // 修改主处理流程中的保存代码
       await DataSaver.saveWithHeader(
         lrTensor,
-        path.join(OUTPUT_DIR.TEST_X, `${baseName}.bin`),
+        path.join(OUTPUT_DIR.TRAIN_X, `${baseName}.bin`),
         [lrTensor.shape[0], lrTensor.shape[1], 4] // [H_lr, W_lr, 4]
       );
 
       await DataSaver.saveWithHeader(
         offsets,
-        path.join(OUTPUT_DIR.TEST_OFFSET, `${baseName}.bin`),
+        path.join(OUTPUT_DIR.TRAIN_OFFSET, `${baseName}.bin`),
         [offsets.shape[0], offsets.shape[1], 2] // [H_sr, W_sr, 2]
       );
 
       await DataSaver.saveWithHeader(
         weights,
-        path.join(OUTPUT_DIR.TEST_Y, `${baseName}.bin`),
+        path.join(OUTPUT_DIR.TRAIN_Y, `${baseName}.bin`),
         [weights.shape[0], weights.shape[1], 16] // 关键修改：16通道
       );
 

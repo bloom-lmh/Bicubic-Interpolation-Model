@@ -10,7 +10,7 @@ const OUTPUT_DIR = {
   TRAIN_OFFSET: "./data/train/offset/",
   TRAIN_Y: "./data/train/Y/",
 };
-const RAW_HR_DIR = "./data/raw/DIV2K_train_HR/";
+const RAW_HR_DIR = "../public/data/raw/DIV2K_train_HR/";
 const METADATA_PATH = path.join(OUTPUT_DIR.TRAIN_X, "../metadata.json"); // 元数据路径
 // ===================== 新增元数据工具方法 =====================
 async function updateMetadata(sampleId, H_lr, W_lr, H_sr, W_sr) {

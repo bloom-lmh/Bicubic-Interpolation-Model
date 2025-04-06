@@ -10,7 +10,7 @@ const OUTPUT_DIR = {
   TEST_OFFSET: "./data/test/offset/",
   TEST_Y: "./data/test/Y/",
 };
-const RAW_HR_DIR = "../public/data/raw/DIV2K_test_HR/";
+const RAW_HR_DIR = "./data/test/DIV2K_test_HR/";
 const METADATA_PATH = path.join(OUTPUT_DIR.TEST_X, "../metadata.json"); // 元数据路径
 // ===================== 新增元数据工具方法 =====================
 async function updateMetadata(sampleId, H_lr, W_lr, H_sr, W_sr) {
