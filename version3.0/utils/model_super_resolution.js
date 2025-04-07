@@ -2,6 +2,7 @@ const tf = require("@tensorflow/tfjs-node");
 const fs = require("fs");
 const PNG = require("pngjs").PNG;
 const sharp = require("sharp");
+const pc = require("./compare_performance");
 const MODEL = "1e-3";
 const HRID = "0829";
 const LR_IMAGEPATH = `./cp_image/lr_images/${HRID}_downsample.png`;
@@ -205,5 +206,6 @@ async function main() {
   // 清理内存
   tf.dispose([lrImage, srImage]);
 }
-
-main();
+pc(() => main(), {
+  testItem: "msr",
+});

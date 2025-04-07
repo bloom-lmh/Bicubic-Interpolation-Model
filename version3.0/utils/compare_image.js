@@ -5,9 +5,10 @@ const fs = require("fs-extra");
 const path = require("path");
 const MODEL = "1e-3";
 const HRID = "0829";
+const MN = -1;
 const HR_IMAGEPATH = `../cp_image/hr_images/${HRID}.png`;
-const REBUILD_HR_IMAGEPATH = `../cp_image/rebuild_hr_images/${HRID}_rebuild_${MODEL}.png`;
-//const REBUILD_HR_IMAGEPATH = `../cp_image/rebuild_hr_images/${HRID}_rebuild_bicubic.png`;
+const REBUILD_HR_IMAGEPATH_MODEL = `../cp_image/rebuild_hr_images/${HRID}_rebuild_${MODEL}.png`;
+const REBUILD_HR_IMAGEPATH_BICUBIC = `../cp_image/rebuild_hr_images/${HRID}_rebuild_bicubic_${MN}.png`;
 const OR_DIFFOAPARH = `../cp_image/or_diff/`;
 class ImageComparator {
   constructor() {
@@ -179,15 +180,14 @@ class ImageComparator {
   }
 }
 
-// 使用示例（带错误处理）
-(async () => {
+async function compare(comparator, rebuildHRImagePath) {
   try {
     const comparator = new ImageComparator();
 
     // 1. 加载图像
     await comparator.loadImages(
       path.join(__dirname, HR_IMAGEPATH),
-      path.join(__dirname, REBUILD_HR_IMAGEPATH)
+      path.join(__dirname, rebuildHRImagePath)
     );
 
     // 2. 计算质量指标
@@ -200,9 +200,22 @@ class ImageComparator {
     });
 
     // 4. 生成差异可视化图
-    await comparator.generateDiffImage(
-      path.join(__dirname, OR_DIFFOAPARH, `diff_${HRID}_${MODEL}.png`)
-    );
+    let diffPath;
+    if (rebuildHRImagePath.includes("bicubic")) {
+      diffPath = path.join(
+        __dirname,
+        OR_DIFFOAPARH,
+        `diff_${HRID}_bicubic_${MN}.png`
+      );
+    } else {
+      diffPath = path.join(
+        __dirname,
+        OR_DIFFOAPARH,
+        `diff_${HRID}_${MODEL}.png`
+      );
+    }
+
+    await comparator.generateDiffImage(diffPath);
     // 5. 打印专业报告
     comparator.printReport();
 
@@ -214,4 +227,10 @@ class ImageComparator {
     });
     process.exit(1);
   }
+}
+// 使用示例（带错误处理）
+(async () => {
+  const comparator = new ImageComparator();
+  await compare(comparator, REBUILD_HR_IMAGEPATH_MODEL);
+  await compare(comparator, REBUILD_HR_IMAGEPATH_BICUBIC);
 })();

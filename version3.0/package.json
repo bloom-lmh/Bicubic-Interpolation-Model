@@ -14,8 +14,8 @@
     "vl": "node utils/visualize.js",
     "cpm": "node utils/compare_model.js",
     "cpi": "node utils/compare_image.js",
-    "msr": "node utils/model_super_resolution.js",
-    "bsr": "node utils/bicubic_super_resolution.js"
+    "msr": "node --trace-gc utils/model_super_resolution.js",
+    "bsr": "node --trace-gc utils/bicubic_super_resolution.js"
   },
   "keywords": [],
   "author": "",
