@@ -9,6 +9,11 @@ const MN = -1;
 const HR_IMAGEPATH = `../cp_image/hr_images/${HRID}.png`;
 const REBUILD_HR_IMAGEPATH_MODEL = `../cp_image/rebuild_hr_images/${HRID}_rebuild_${MODEL}.png`;
 const REBUILD_HR_IMAGEPATH_BICUBIC = `../cp_image/rebuild_hr_images/${HRID}_rebuild_bicubic_${MN}.png`;
+const REBUILD_HR_IMAGEPATH_NN = `../cp_image/rebuild_hr_images/${HRID}_rebuild_nearest.png`;
+const REBUILD_HR_IMAGEPATH_BILINEAR = `../cp_image/rebuild_hr_images/${HRID}_rebuild_bilinear.png`;
+const REBUILD_HR_IMAGEPATH_LANCZOS = `../cp_image/rebuild_hr_images/${HRID}_rebuild_lanczos.png`;
+const REBUILD_HR_IMAGEPATH_ESPCN_THICK = `../cp_image/rebuild_hr_images/${HRID}_rebuild_espcn_thick.png`;
+const REBUILD_HR_IMAGEPATH_ESPCN_MEDIUM = `../cp_image/rebuild_hr_images/${HRID}_rebuild_espcn_medium.png`;
 const OR_DIFFOAPARH = `../cp_image/or_diff/`;
 class ImageComparator {
   constructor() {
@@ -233,4 +238,9 @@ async function compare(comparator, rebuildHRImagePath) {
   const comparator = new ImageComparator();
   await compare(comparator, REBUILD_HR_IMAGEPATH_MODEL);
   await compare(comparator, REBUILD_HR_IMAGEPATH_BICUBIC);
+  await compare(comparator, REBUILD_HR_IMAGEPATH_NN);
+  await compare(comparator, REBUILD_HR_IMAGEPATH_BILINEAR);
+  await compare(comparator, REBUILD_HR_IMAGEPATH_LANCZOS);
+  await compare(comparator, REBUILD_HR_IMAGEPATH_ESPCN_THICK);
+  await compare(comparator, REBUILD_HR_IMAGEPATH_ESPCN_MEDIUM);
 })();
