@@ -17,7 +17,6 @@ const EPOCHS = 100;
 const LEARNING_RATE = 1e-4;
 
 // ===================== 数据加载 =====================
-// 统一数据加载接口
 async function loadDynamicTensor(dirPath, dataType) {
   // 加载元数据
   const metadata = JSON.parse(await readFile(METADATA_PATH));

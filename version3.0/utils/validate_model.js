@@ -102,7 +102,7 @@ async function testModel() {
     await validateSumWeights(predY);
 
     // 抽样可视化
-    await visualizeWeights(predY.squeeze());
+    //await visualizeWeights(predY.squeeze());
     // 预测后调用（示例查看中心点）
     const centerX = Math.floor(predY.shape[2] / 2);
     const centerY = Math.floor(predY.shape[1] / 2);
