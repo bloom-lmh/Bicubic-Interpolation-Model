@@ -20,7 +20,8 @@
     "bisr": "node utils/bilinear_super_resolution.js",
     "lsr": "node utils/​lanczos_super_resolution.js",
     "etsr": "node utils/espcn_thick_super_resolution.js",
-    "emsr": "node utils/espcn_medium_super_resolution.js"
+    "emsr": "node utils/espcn_medium_super_resolution.js",
+    "absr": "node utils/adaptive_bicubic_super_resolution.js"
   },
   "keywords": [],
   "author": "",

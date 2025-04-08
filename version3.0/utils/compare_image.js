@@ -5,7 +5,7 @@ const fs = require("fs-extra");
 const path = require("path");
 const MODEL = "1e-3-30";
 const HRID = "0829";
-const MN = -1;
+const MN = -0.5;
 const HR_IMAGEPATH = `../cp_image/hr_images/${HRID}.png`;
 const REBUILD_HR_IMAGEPATH_MODEL = `../cp_image/rebuild_hr_images/${HRID}_rebuild_${MODEL}.png`;
 const REBUILD_HR_IMAGEPATH_BICUBIC = `../cp_image/rebuild_hr_images/${HRID}_rebuild_bicubic_${MN}.png`;
@@ -14,6 +14,7 @@ const REBUILD_HR_IMAGEPATH_BILINEAR = `../cp_image/rebuild_hr_images/${HRID}_reb
 const REBUILD_HR_IMAGEPATH_LANCZOS = `../cp_image/rebuild_hr_images/${HRID}_rebuild_lanczos.png`;
 const REBUILD_HR_IMAGEPATH_ESPCN_THICK = `../cp_image/rebuild_hr_images/${HRID}_rebuild_espcn_thick.png`;
 const REBUILD_HR_IMAGEPATH_ESPCN_MEDIUM = `../cp_image/rebuild_hr_images/${HRID}_rebuild_espcn_medium.png`;
+const REBUILD_HR_IMAGEPATH_ADAPTIVE_BICUBIC = `../cp_image/rebuild_hr_images/${HRID}_rebuild_adaptive_bicubic_${MN}.png`;
 const OR_DIFFOAPARH = `../cp_image/or_diff/`;
 class ImageComparator {
   constructor() {
@@ -205,26 +206,19 @@ async function compare(comparator, rebuildHRImagePath) {
     });
 
     // 4. 生成差异可视化图
-    let diffPath;
-    if (rebuildHRImagePath.includes("bicubic")) {
-      diffPath = path.join(
-        __dirname,
-        OR_DIFFOAPARH,
-        `diff_${HRID}_bicubic_${MN}.png`
-      );
-    } else {
-      diffPath = path.join(
-        __dirname,
-        OR_DIFFOAPARH,
-        `diff_${HRID}_${MODEL}.png`
-      );
-    }
+    let diffPath = path.join(
+      __dirname,
+      OR_DIFFOAPARH,
+      `diff_${path.basename(rebuildHRImagePath)}`
+    );
 
     await comparator.generateDiffImage(diffPath);
     // 5. 打印专业报告
     comparator.printReport();
 
-    console.log(`图像对比完成，差异图已保存为 diff_${HRID}_${MODEL}.png`);
+    console.log(
+      `图像对比完成，差异图已保存为 diff_${path.basename(rebuildHRImagePath)}`
+    );
   } catch (error) {
     console.error("❌ 错误详情:", {
       message: error.message,
@@ -243,4 +237,5 @@ async function compare(comparator, rebuildHRImagePath) {
   await compare(comparator, REBUILD_HR_IMAGEPATH_LANCZOS);
   await compare(comparator, REBUILD_HR_IMAGEPATH_ESPCN_THICK);
   await compare(comparator, REBUILD_HR_IMAGEPATH_ESPCN_MEDIUM);
+  await compare(comparator, REBUILD_HR_IMAGEPATH_ADAPTIVE_BICUBIC);
 })();
