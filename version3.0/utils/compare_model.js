@@ -6,7 +6,7 @@ const { promisify } = require("util");
 const PNG = require("pngjs").PNG;
 
 // ===================== 配置 =====================
-const learn_rate = "1e-4-20"; // 可配置为命令行参数
+const learn_rate = "1e-3-30"; // 可配置为命令行参数
 const OUTPUT_DIR = path.join("cp_model", learn_rate);
 
 // 确保输出目录存在

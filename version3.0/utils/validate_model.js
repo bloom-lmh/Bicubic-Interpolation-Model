@@ -12,7 +12,7 @@ const TEST_DIR = {
   X_OFFSET: "./data/test/offset/",
   Y_GT: "./data/test/Y/", // 可选的真实权重
 };
-const MODEL_PATH = "file://./model/1e-4/model.json";
+const MODEL_PATH = "file://./model/1e-3-30/model.json";
 
 // ===================== 改进后的数据加载函数 =====================
 async function loadDynamicTensor(dirPath) {

@@ -3,7 +3,7 @@ const fs = require("fs");
 const PNG = require("pngjs").PNG;
 const sharp = require("sharp");
 const pc = require("./compare_performance");
-const MODEL = "1e-3";
+const MODEL = "1e-3-30";
 const HRID = "0829";
 const LR_IMAGEPATH = `./cp_image/lr_images/${HRID}_downsample.png`;
 const HR_IMAGEPATH = `./cp_image/hr_images/${HRID}.png`;
@@ -207,5 +207,5 @@ async function main() {
   tf.dispose([lrImage, srImage]);
 }
 pc(() => main(), {
-  testItem: "msr",
+  testItem: `model_${MODEL}`,
 });
