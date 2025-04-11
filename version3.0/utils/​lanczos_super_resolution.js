@@ -2,10 +2,9 @@ const sharp = require("sharp");
 const { createCanvas, loadImage } = require("canvas");
 const fs = require("fs");
 const pc = require("./compare_performance");
-const HRID = "0829";
+const { HRID } = require("./config");
 const LR_IMAGEPATH = `./cp_image/lr_images/${HRID}_downsample.png`;
-const REBUILD_HR_IMAGEPATH = `./cp_image/rebuild_hr_images/${HRID}_rebuild_lanczos.png`;
-
+const REBUILD_HR_IMAGEPATH = `./cp_image/rebuild_hr_images/${HRID}/lanczos.png`;
 function lanczosKernel(x, a = 3) {
   if (x === 0) return 1;
   if (Math.abs(x) > a) return 0;
@@ -90,7 +89,12 @@ async function superResolveLanczos(inputPath, outputPath, scale, a = 3) {
 
     // 执行插值
     console.time("Lanczos Interpolation");
-    const outputImage = lanczosInterpolation(inputImage, scale, a);
+    // 使用示例
+    let outputImage;
+    pc(() => (outputImage = lanczosInterpolation(inputImage, scale, a)), {
+      testItem: "lanczos",
+    });
+
     console.timeEnd("Lanczos Interpolation");
 
     // 保存结果
@@ -107,17 +111,9 @@ async function superResolveLanczos(inputPath, outputPath, scale, a = 3) {
     console.error("处理失败:", err);
   }
 }
-
-// 使用示例
-pc(
-  () =>
-    superResolveLanczos(
-      LR_IMAGEPATH, // 低分辨率输入图像
-      REBUILD_HR_IMAGEPATH, // 超分结果保存路径
-      4, // 放大4倍
-      3 // Lanczos窗口大小
-    ),
-  {
-    testItem: "lanczos",
-  }
+superResolveLanczos(
+  LR_IMAGEPATH, // 低分辨率输入图像
+  REBUILD_HR_IMAGEPATH, // 超分结果保存路径
+  4, // 放大4倍
+  3 // Lanczos窗口大小
 );

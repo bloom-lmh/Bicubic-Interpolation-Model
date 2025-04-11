@@ -2,10 +2,10 @@ const sharp = require("sharp");
 const { createCanvas, loadImage } = require("canvas");
 const fs = require("fs");
 const pc = require("./compare_performance");
-const HRID = "0829";
+const { HRID } = require("./config");
 const MN = -0.5;
 const LR_IMAGEPATH = `./cp_image/lr_images/${HRID}_downsample.png`;
-const REBUILD_HR_IMAGEPATH = `./cp_image/rebuild_hr_images/${HRID}_rebuild_adaptive_bicubic_${MN}.png`;
+const REBUILD_HR_IMAGEPATH = `./cp_image/rebuild_hr_images/${HRID}/adaptive_bicubic_${MN}.png`;
 
 function ultimateBicubicInterpolation(input, scale, a = -0.5) {
   const { width: w, height: h, data } = input;

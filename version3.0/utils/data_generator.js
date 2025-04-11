@@ -123,12 +123,6 @@ class DataGenerator {
   }
 
   static calculateSubpixelOffset(x_hr, y_hr, scale) {
-    /*  const x_lr = (x_hr + 0.5) / scale - 0.5;
-    const y_lr = (y_hr + 0.5) / scale - 0.5;
-    return {
-      dx: x_lr - Math.floor(x_lr),
-      dy: y_lr - Math.floor(y_lr),
-    }; */
     // 正确计算方法：将HR坐标映射到LR网格中心
     const x_lr = (x_hr + 0.5) / scale;
     const y_lr = (y_hr + 0.5) / scale;

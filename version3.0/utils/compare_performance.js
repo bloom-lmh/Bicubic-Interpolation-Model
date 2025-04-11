@@ -2,61 +2,49 @@ const fs = require("fs");
 const path = require("path");
 const { performance } = require("perf_hooks");
 
-// 配置输出目录
-const REPORT_DIR = "../cp_performance";
+async function accuratePerformanceTest(func, options) {
+  const { testItem, runs = 2 } = options;
+  const results = [
+    "Run,Timestamp,Execution Time (ms),CPU Time (ms),Memory (MB)",
+  ];
 
-/**
- * 简化版性能测试工具
- * @param {Function} func - 待测试函数（支持异步）
- * @param {Object} options - 配置项
- * @param {string} options.testName - 测试名称
- * @param {number} [options.runs=5] - 测试次数
- */
-async function simplePerformanceTest(func, options) {
-  const { testItem, testName = "performance_test", runs = 2 } = options;
-  const results = [];
-  let outputDir = path.join(__dirname, REPORT_DIR, testItem);
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-  // CSV表头
-  const headers =
-    "Run,Timestamp,Execution Time (ms),CPU Usage (ms),Memory Usage (MB)";
-  results.push(headers);
+  // 预热运行（避免冷启动误差）
+  for (let i = 0; i < 2; i++) await func();
 
   for (let i = 0; i < runs; i++) {
-    // 1. 记录初始状态
-    const memBefore = process.memoryUsage();
+    // 1. 重置内存基准
+    global.gc?.(); // 显式触发GC（需--expose-gc）
+    const memBefore = process.memoryUsage.rss(); // 改用RSS内存
     const cpuBefore = process.cpuUsage();
-    const startTime = performance.now();
 
-    // 2. 执行函数
+    // 2. 执行计时
+    const start = performance.now();
     await func();
+    const execTime = performance.now() - start;
 
     // 3. 计算指标
-    const memAfter = process.memoryUsage();
-    const cpuAfter = process.cpuUsage();
-    const endTime = performance.now();
+    const memAfter = process.memoryUsage.rss();
+    const cpuDiff = process.cpuUsage(cpuBefore);
+    const cpuTime = (cpuDiff.user + cpuDiff.system) / 1000; // 修正CPU时间计算
 
-    // 4. 收集结果
-    const row = [
-      i + 1,
-      new Date().toISOString(),
-      (endTime - startTime).toFixed(2),
-      ((cpuAfter.user - cpuBefore.user) / 1000).toFixed(2),
-      ((memAfter.heapUsed - memBefore.heapUsed) / 1024 / 1024).toFixed(2),
-    ].join(",");
-
-    results.push(row);
+    // 4. 记录结果
+    results.push(
+      [
+        i + 1,
+        new Date().toISOString(),
+        execTime.toFixed(2),
+        cpuTime.toFixed(2),
+        (memAfter / 1024 / 1024).toFixed(2),
+      ].join(",")
+    );
   }
 
-  // 5. 写入CSV文件
-  const filename = `${testName}.csv`;
-  const filepath = path.join(outputDir, filename);
-  fs.writeFileSync(filepath, results.join("\n"));
-
-  console.log(`✅ 测试完成！结果已保存到: ${filepath}`);
-  console.log("\n测试结果概览:");
-  console.log(results.join("\n"));
+  // 保存结果（同原代码）
+  const outputDir = path.join(__dirname, "../cp_performance", testItem);
+  fs.mkdirSync(outputDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(outputDir, `${testItem}_performance.csv`),
+    results.join("\n")
+  );
 }
-module.exports = simplePerformanceTest;
+module.exports = accuratePerformanceTest;

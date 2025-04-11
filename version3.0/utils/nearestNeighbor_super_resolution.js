@@ -2,9 +2,9 @@ const sharp = require("sharp");
 const { createCanvas, loadImage } = require("canvas");
 const fs = require("fs");
 const pc = require("./compare_performance");
-const HRID = "0829";
+const { HRID } = require("./config");
 const LR_IMAGEPATH = `./cp_image/lr_images/${HRID}_downsample.png`;
-const REBUILD_HR_IMAGEPATH = `./cp_image/rebuild_hr_images/${HRID}_rebuild_nearest.png`;
+const REBUILD_HR_IMAGEPATH = `./cp_image/rebuild_hr_images/${HRID}/nearest.png`;
 
 /**
  * 最近邻插值算法实现
@@ -69,7 +69,10 @@ async function superResolveNearest(inputPath, outputPath, scale) {
 
     // 执行插值
     console.time("Nearest Neighbor Interpolation");
-    const outputImage = nearestNeighborInterpolation(inputImage, scale);
+    let outputImage;
+    pc(() => (outputImage = nearestNeighborInterpolation(inputImage, scale)), {
+      testItem: "nearest",
+    });
     console.timeEnd("Nearest Neighbor Interpolation");
 
     // 保存结果
@@ -87,8 +90,13 @@ async function superResolveNearest(inputPath, outputPath, scale) {
   }
 }
 
+superResolveNearest(
+  LR_IMAGEPATH, // 低分辨率输入图像
+  REBUILD_HR_IMAGEPATH, // 超分结果保存路径
+  4 // 放大4倍
+);
 // 使用示例
-pc(
+/* pc(
   () =>
     superResolveNearest(
       LR_IMAGEPATH, // 低分辨率输入图像
@@ -98,4 +106,4 @@ pc(
   {
     testItem: "nearest",
   }
-);
+); */

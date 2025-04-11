@@ -11,7 +11,6 @@
     "dev": "nodemon server.js",
     "vm": "node --max-old-space-size=8192 utils/validate_model.js",
     "td": "node utils/testData_generator.js",
-    "vl": "node utils/visualize.js",
     "cpm": "node utils/compare_model.js",
     "cpi": "node utils/compare_image.js",
     "msr": "node utils/model_super_resolution.js",

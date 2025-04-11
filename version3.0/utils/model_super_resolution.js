@@ -4,11 +4,18 @@ const PNG = require("pngjs").PNG;
 const sharp = require("sharp");
 const pc = require("./compare_performance");
 const MODEL = "1e-3-30";
-const HRID = "0829";
+const { HRID } = require("./config");
 const LR_IMAGEPATH = `./cp_image/lr_images/${HRID}_downsample.png`;
 const HR_IMAGEPATH = `./cp_image/hr_images/${HRID}.png`;
-const REBUILD_HR_IMAGEPATH = `./cp_image/rebuild_hr_images/${HRID}_rebuild_${MODEL}.png`;
+const REBUILD_HR_IMAGEPATH = `./cp_image/rebuild_hr_images/${HRID}/${MODEL}.png`;
 const SCALE_FACTOR = 4;
+fs.mkdir(`./cp_image/rebuild_hr_images/${HRID}`, { recursive: true }, (err) => {
+  if (err) {
+    console.error("创建目录失败:", err);
+  } else {
+    console.log("目录已创建或已存在");
+  }
+});
 // 降采样函数（使用Lanczos滤波）
 async function downsampleImage(hrPath, scaleFactor = 4) {
   const hrImage = await sharp(hrPath);

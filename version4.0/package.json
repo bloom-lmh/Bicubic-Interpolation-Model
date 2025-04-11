@@ -4,15 +4,8 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
     "train": "node --max-old-space-size=4096 utils/train.js",
-    "data": "node utils/data_generator.js",
-    "vd": "node utils/validate_data.js",
-    "dev": "nodemon server.js",
-    "vm": "node --max-old-space-size=8192 utils/validate_model.js",
-    "td": "node utils/testData_generator.js",
-    "vl": "node utils/visualize.js",
-    "cp": "node utils/compare.js"
+    "data": "node utils/data_generator.js"
   },
   "keywords": [],
   "author": "",

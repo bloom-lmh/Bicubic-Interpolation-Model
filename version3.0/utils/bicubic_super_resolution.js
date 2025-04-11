@@ -2,10 +2,10 @@ const sharp = require("sharp");
 const { createCanvas, loadImage } = require("canvas");
 const fs = require("fs");
 const pc = require("./compare_performance");
-const HRID = "0829";
+const { HRID } = require("./config");
 const MN = -0.5;
 const LR_IMAGEPATH = `./cp_image/lr_images/${HRID}_downsample.png`;
-const REBUILD_HR_IMAGEPATH = `./cp_image/rebuild_hr_images/${HRID}_rebuild_bicubic_${MN}.png`;
+const REBUILD_HR_IMAGEPATH = `./cp_image/rebuild_hr_images/${HRID}/bicubic_${MN}.png`;
 
 /**
  * 双三次插值算法实现
@@ -106,7 +106,10 @@ async function superResolve(inputPath, outputPath, scale, a = -0.5) {
 
     // 执行插值
     console.time("Bicubic Interpolation");
-    const outputImage = bicubicInterpolation(inputImage, scale, a);
+    let outputImage;
+    pc(() => (outputImage = bicubicInterpolation(inputImage, scale, a)), {
+      testItem: "bsr",
+    });
     console.timeEnd("Bicubic Interpolation");
 
     // 保存结果
@@ -123,23 +126,9 @@ async function superResolve(inputPath, outputPath, scale, a = -0.5) {
     console.error("处理失败:", err);
   }
 }
-// 使用示例
-/* superResolve(
+superResolve(
   LR_IMAGEPATH, // 低分辨率输入图像
   REBUILD_HR_IMAGEPATH, // 超分结果保存路径
   4, // 放大4倍
   MN // Mitchell-Netravali参数
-); */
-// 测试斐波那契函数
-pc(
-  () =>
-    superResolve(
-      LR_IMAGEPATH, // 低分辨率输入图像
-      REBUILD_HR_IMAGEPATH, // 超分结果保存路径
-      4, // 放大4倍
-      MN // Mitchell-Netravali参数
-    ),
-  {
-    testItem: "bsr",
-  }
 );
