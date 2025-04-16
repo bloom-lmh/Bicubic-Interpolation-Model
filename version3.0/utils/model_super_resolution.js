@@ -122,10 +122,7 @@ function applyWeights(X_image, weights, H_sr, W_sr) {
 
   return srImage;
 }
-async function superResolve(modelPath, lrImage, H_lr, W_lr, H_sr, W_sr) {
-  const model = await tf.loadLayersModel(
-    `file://./model/${modelPath}/model.json`
-  );
+async function superResolve(model, lrImage, H_lr, W_lr, H_sr, W_sr) {
   const X_offset = generateOffset(H_lr, W_lr, H_sr, W_sr);
   const weights = await predictWeights(model, lrImage, X_offset);
 
@@ -197,14 +194,21 @@ function getImageMetadata(lrImage, scale = 4) {
 }
 // 使用示例
 async function main() {
+  const model = await tf.loadLayersModel(`file://./model/${MODEL}/model.json`);
   // 1. 降采样高清图得到低分辨率图
   const lrBuffer = await downsampleImage(HR_IMAGEPATH, SCALE_FACTOR);
   fs.writeFileSync(LR_IMAGEPATH, lrBuffer); // 保存降采样后的图
 
   const lrImage = await loadPNG(LR_IMAGEPATH);
   const [H_lr, W_lr, H_sr, W_sr] = getImageMetadata(lrImage);
-
-  const srImage = await superResolve(MODEL, lrImage, H_lr, W_lr, H_sr, W_sr);
+  let srImage;
+  await pc(
+    async () =>
+      (srImage = await superResolve(model, lrImage, H_lr, W_lr, H_sr, W_sr)),
+    {
+      testItem: `model_${MODEL}`,
+    }
+  );
 
   // 保存结果
   const buffer = await tf.node.encodePng(srImage);
@@ -213,6 +217,4 @@ async function main() {
   // 清理内存
   tf.dispose([lrImage, srImage]);
 }
-pc(() => main(), {
-  testItem: `model_${MODEL}`,
-});
+main();

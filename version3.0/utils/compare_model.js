@@ -1,4 +1,4 @@
-// bicubic_weight_comparison.js
+/* // bicubic_weight_comparison.js
 const tf = require("@tensorflow/tfjs-node");
 const fs = require("fs");
 const path = require("path");
@@ -30,7 +30,6 @@ const CONFIG = {
   },
 };
 
-// ===================== 工具函数 =====================
 // ===================== 工具函数 =====================
 const readDir = promisify(fs.readdir);
 const readFile = promisify(fs.readFile);
@@ -340,5 +339,328 @@ class WeightComparator {
   } catch (error) {
     console.error("‼️ 初始化失败:", error.message);
     process.exit(1);
+  }
+})();
+ */
+const tf = require("@tensorflow/tfjs-node");
+const fs = require("fs");
+const path = require("path");
+const { createCanvas } = require("@napi-rs/canvas"); // 更高效的内存管理
+const { promisify } = require("util");
+const { pipeline } = require("stream/promises");
+const PNG = require("pngjs").PNG;
+
+// ===================== 增强配置 =====================
+const CONFIG = {
+  learnRate: "adaptive-1e-3-30",
+  metadataPath: "./data/test/metadata.json",
+  directories: {
+    lrImages: "./data/test/X/",
+    offsets: "./data/test/offset/",
+    gtWeights: "./data/test/Y/",
+  },
+  modelPath: "file://./model/adaptive-1e-3-30/model.json",
+  output: {
+    root: "./analysis_results",
+    histograms: "histograms",
+    tables: "tables",
+    visualizations: "visuals",
+  },
+  performance: {
+    chunkSize: 1e5, // 分块处理大小
+    maxBins: 1000, // 最大分箱数
+    canvasDPI: 300, // 输出分辨率
+  },
+};
+
+// ===================== 工具函数 =====================
+const readDir = promisify(fs.readdir);
+const readFile = promisify(fs.readFile);
+const writeFile = promisify(fs.writeFile);
+
+async function initDirectories() {
+  const paths = Object.values(CONFIG.output).map((p) =>
+    path.join(CONFIG.output.root, p)
+  );
+
+  await Promise.all(
+    paths.map(async (p) => {
+      if (!fs.existsSync(p)) {
+        await fs.promises.mkdir(p, { recursive: true });
+      }
+    })
+  );
+}
+
+// ===================== 流式数据加载 =====================
+class StreamLoader {
+  static async *tensorIterator(tensor) {
+    const size = tensor.size;
+    for (let i = 0; i < size; i += CONFIG.performance.chunkSize) {
+      const end = Math.min(i + CONFIG.performance.chunkSize, size);
+      const slice = tensor.reshape([size]).slice([i], [end - i]);
+      const data = await slice.data();
+      yield data;
+      tf.dispose(slice);
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+  }
+
+  static async processTensor(tensor) {
+    const stats = {
+      min: Infinity,
+      max: -Infinity,
+      sum: 0,
+      count: 0,
+    };
+
+    for await (const chunk of this.tensorIterator(tensor)) {
+      const chunkStats = chunk.reduce(
+        (acc, val) => ({
+          min: Math.min(acc.min, val),
+          max: Math.max(acc.max, val),
+          sum: acc.sum + val,
+          count: acc.count + 1,
+        }),
+        { ...stats }
+      );
+
+      Object.assign(stats, chunkStats);
+    }
+
+    return {
+      ...stats,
+      mean: stats.sum / stats.count,
+      range: stats.max - stats.min,
+    };
+  }
+}
+
+// ===================== 高性能可视化 =====================
+class HistogramGenerator {
+  static async createComparison(gtTensor, predTensor, filename) {
+    // 并行计算统计指标
+    const [gtStats, predStats] = await Promise.all([
+      StreamLoader.processTensor(gtTensor),
+      StreamLoader.processTensor(predTensor),
+    ]);
+
+    // 动态分箱策略
+    const binWidth = this.calculateBinWidth(gtStats, predStats);
+    const binCount = Math.min(
+      Math.ceil(
+        (Math.max(gtStats.max, predStats.max) -
+          Math.min(gtStats.min, predStats.min)) /
+          binWidth
+      ),
+      CONFIG.performance.maxBins
+    );
+
+    // 创建Canvas
+    const canvas = createCanvas(2400, 1200);
+    const ctx = canvas.getContext("2d");
+    this.setupCanvas(ctx, canvas);
+
+    // 流式构建直方图
+    await this.drawHistogram(ctx, gtTensor, gtStats, binWidth, binCount, "gt");
+    await this.drawHistogram(
+      ctx,
+      predTensor,
+      predStats,
+      binWidth,
+      binCount,
+      "pred"
+    );
+
+    // 添加标注
+    this.drawAnnotations(ctx, canvas, gtStats, predStats, binWidth);
+
+    // 保存输出
+    await this.saveOutput(canvas, filename);
+  }
+
+  static calculateBinWidth(gtStats, predStats) {
+    const n = Math.sqrt(gtStats.count + predStats.count);
+    const range = Math.max(gtStats.range, predStats.range);
+    return (2 * (gtStats.mean + predStats.mean)) / Math.cbrt(n);
+  }
+
+  static setupCanvas(ctx, canvas) {
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = `bold ${12 * (canvas.width / 1200)}px Arial`;
+    ctx.textBaseline = "top";
+  }
+
+  static async drawHistogram(ctx, tensor, stats, binWidth, binCount, type) {
+    const bins = new Uint32Array(binCount);
+    const minVal = Math.min(stats.min, stats.min);
+
+    for await (const chunk of StreamLoader.tensorIterator(tensor)) {
+      chunk.forEach((value) => {
+        const bin = Math.min(
+          Math.floor((value - minVal) / binWidth),
+          binCount - 1
+        );
+        if (bin >= 0) bins[bin]++;
+      });
+    }
+
+    const maxCount = Math.max(...bins);
+    const color =
+      type === "gt" ? "rgba(255,99,132,0.6)" : "rgba(54,162,235,0.6)";
+
+    ctx.fillStyle = color;
+    const barWidth = (ctx.canvas.width - 200) / binCount;
+
+    bins.forEach((count, i) => {
+      const height = (count / maxCount) * (ctx.canvas.height - 200);
+      ctx.fillRect(
+        100 + i * barWidth,
+        ctx.canvas.height - 100 - height,
+        barWidth * 0.8,
+        height
+      );
+    });
+  }
+
+  static drawAnnotations(ctx, canvas, gtStats, predStats, binWidth) {
+    ctx.fillStyle = "#333333";
+    ctx.textAlign = "center";
+    ctx.fillText("Weight Value Distribution", canvas.width / 2, 50);
+
+    // X轴标注
+    Array.from({ length: 5 }).forEach((_, i) => {
+      const x = 100 + (i * (canvas.width - 200)) / 4;
+      const value = (gtStats.min + i * binWidth * 5).toFixed(2);
+      ctx.fillText(value, x, canvas.height - 70);
+    });
+
+    // 图例
+    ctx.fillStyle = "#666666";
+    ctx.fillRect(150, 100, 300, 120);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillText(`Ground Truth (μ=${gtStats.mean.toFixed(4)})`, 300, 120);
+    ctx.fillText(`Predicted (μ=${predStats.mean.toFixed(4)})`, 300, 150);
+  }
+
+  static async saveOutput(canvas, filename) {
+    const buffer = canvas.toBuffer("image/png", {
+      compressionLevel: 3,
+      filters: canvas.PNG_FILTER_NONE,
+    });
+
+    await writeFile(filename, buffer);
+    console.log(`📈 直方图已保存: ${filename}`);
+  }
+}
+
+// ===================== 分析引擎 =====================
+class AnalysisEngine {
+  constructor() {
+    this.model = null;
+  }
+
+  async initialize() {
+    await initDirectories();
+    this.model = await tf.loadLayersModel(CONFIG.modelPath);
+    console.log("✅ 系统初始化完成 | 模型加载成功");
+  }
+
+  async execute() {
+    try {
+      const [images, offsets, weights] = await Promise.all([
+        this.loadDataset("lrImages"),
+        this.loadDataset("offsets"),
+        this.loadDataset("gtWeights"),
+      ]);
+
+      const sampleId = Array.from(images.keys())[0];
+      console.log(`🔍 分析样本: ${sampleId}`);
+
+      const { gtWeights, predWeights } = await this.processSample(
+        images.get(sampleId),
+        offsets.get(sampleId),
+        weights.get(sampleId)
+      );
+
+      await this.generateReports(gtWeights, predWeights);
+      await this.cleanup([gtWeights, predWeights]);
+    } catch (error) {
+      console.error("‼️ 分析流程异常:", error);
+      process.exit(1);
+    }
+  }
+
+  async loadDataset(type) {
+    const dir = CONFIG.directories[type];
+    const files = (await readDir(dir)).filter((f) => f.endsWith(".bin"));
+
+    const dataset = new Map();
+    await Promise.all(
+      files.map(async (file) => {
+        const tensor = await this.loadTensor(path.join(dir, file));
+        dataset.set(path.parse(file).name, tensor);
+      })
+    );
+
+    return dataset;
+  }
+
+  async loadTensor(filePath) {
+    const buffer = await readFile(filePath);
+    const header = {
+      height: buffer.readUInt32LE(0),
+      width: buffer.readUInt32LE(4),
+      channels: buffer.readUInt32LE(8),
+    };
+
+    const data = new Float32Array(
+      buffer.buffer,
+      buffer.byteOffset + 12,
+      (buffer.length - 12) / 4
+    );
+
+    return tf.tensor3d(data, [header.height, header.width, header.channels]);
+  }
+
+  async processSample(image, offset, gt) {
+    const pred = this.model
+      .predict([image.expandDims(0), offset.expandDims(0)])
+      .squeeze();
+
+    return {
+      gtWeights: gt,
+      predWeights: pred,
+    };
+  }
+
+  async generateReports(gt, pred) {
+    const histPath = path.join(
+      CONFIG.output.root,
+      CONFIG.output.histograms,
+      "weight_comparison.png"
+    );
+
+    await HistogramGenerator.createComparison(gt, pred, histPath);
+    console.log("📊 可视化报告生成完成");
+  }
+
+  async cleanup(tensors) {
+    await Promise.all(tensors.map((t) => tf.dispose(t) || true));
+    console.log("🧹 内存清理完成");
+  }
+}
+
+// ===================== 执行入口 =====================
+(async () => {
+  try {
+    const engine = new AnalysisEngine();
+    await engine.initialize();
+    await engine.execute();
+    console.log("🏁 分析流程成功结束");
+  } catch (error) {
+    console.error("‼️ 系统级错误:", error);
+    process.exit(2);
   }
 })();

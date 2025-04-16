@@ -3,19 +3,40 @@ const SSIM = require("ssim.js");
 const PSNR = require("psnr");
 const fs = require("fs-extra");
 const path = require("path");
+const { createObjectCsvWriter } = require("csv-writer");
 const MODEL = "1e-3-30";
-const { HRID } = require("./config");
+//const { HRID } = require("./config"); // 假设config.js导出的是数组如: module.exports = { HRID: ['001', '002', '003'] }
+const HRID = [
+  "0801",
+  "0802",
+  "0803",
+  "0807",
+  "0829",
+  "0843",
+  "0855",
+  "0884",
+  "0886",
+];
 const MN = -0.5;
-const HR_IMAGEPATH = `../cp_image/hr_images/${HRID}.png`;
-const REBUILD_HR_IMAGEPATH_MODEL = `../cp_image/rebuild_hr_images/${HRID}/${MODEL}.png`;
-const REBUILD_HR_IMAGEPATH_BICUBIC = `../cp_image/rebuild_hr_images/${HRID}/bicubic_${MN}.png`;
-const REBUILD_HR_IMAGEPATH_NN = `../cp_image/rebuild_hr_images/${HRID}/nearest.png`;
-const REBUILD_HR_IMAGEPATH_BILINEAR = `../cp_image/rebuild_hr_images/${HRID}/bilinear.png`;
-const REBUILD_HR_IMAGEPATH_LANCZOS = `../cp_image/rebuild_hr_images/${HRID}/lanczos.png`;
-const REBUILD_HR_IMAGEPATH_ESPCN_THICK = `../cp_image/rebuild_hr_images/${HRID}/espcn_thick.png`;
-const REBUILD_HR_IMAGEPATH_ESPCN_MEDIUM = `../cp_image/rebuild_hr_images/${HRID}/espcn_medium.png`;
-const REBUILD_HR_IMAGEPATH_ADAPTIVE_BICUBIC = `../cp_image/rebuild_hr_images/${HRID}/adaptive_bicubic_${MN}.png`;
-const OR_DIFFOAPARH = `../cp_image/or_diff/`;
+
+// 结果存储对象
+const results = {
+  metrics: [],
+  summary: {},
+};
+
+// CSV写入器配置
+const csvWriter = createObjectCsvWriter({
+  path: path.join(__dirname, "../cp_image/metrics_report.csv"),
+  header: [
+    { id: "imageId", title: "IMAGE_ID" },
+    { id: "method", title: "METHOD" },
+    { id: "psnr", title: "PSNR(dB)" },
+    { id: "ssim", title: "SSIM" },
+    { id: "mse", title: "MSE" },
+  ],
+});
+
 class ImageComparator {
   constructor() {
     this.metrics = {
@@ -164,78 +185,176 @@ class ImageComparator {
     }
   }
 
-  printReport() {
-    console.log("╔════════════════════════════════════╗");
-    console.log("║       专业图像质量评估报告        ║");
-    console.log("╠══════════════╦════════╦═══════════╣");
-    console.log("║ 指标名称     ║ 值     ║ 说明      ║");
-    console.log("╠══════════════╬════════╬═══════════╣");
+  printReport(imageId, method) {
+    console.log(`\n╔══════════════════════════════════════════════╗`);
+    console.log(`║       专业图像质量评估报告 (${imageId}-${method})      ║`);
+    console.log(`╠══════════════╦════════╦═══════════╦══════════╣`);
+    console.log(`║ 指标名称     ║ 值     ║ 单位      ║ 说明     ║`);
+    console.log(`╠══════════════╬════════╬═══════════╬══════════╣`);
 
     Object.values(this.metrics).forEach((metric) => {
-      // 使用预定义格式化函数处理值
       const formattedValue = metric.format(metric.value);
-
       console.log(
         `║ ${metric.name.padEnd(12)} ║ ${formattedValue.padStart(
           6
-        )} ${metric.unit.padEnd(2)} ║ ${metric.desc} ║`
+        )} ║ ${metric.unit.padEnd(9)} ║ ${metric.desc.padEnd(8)} ║`
       );
     });
 
-    console.log("╚══════════════╩════════╩═══════════╝");
+    console.log(`╚══════════════╩════════╩═══════════╩══════════╝`);
+
+    // 存储结果
+    results.metrics.push({
+      imageId,
+      method,
+      psnr: this.metrics.psnr.value,
+      ssim: this.metrics.ssim.value,
+      mse: this.metrics.mse.value,
+    });
   }
 }
 
-async function compare(comparator, rebuildHRImagePath) {
+async function compare(imageId, method) {
   try {
     const comparator = new ImageComparator();
+    const hrImagePath = path.join(
+      __dirname,
+      `../cp_image/hr_images/${imageId}.png`
+    );
+    const rebuildHRImagePath = path.join(
+      __dirname,
+      `../cp_image/rebuild_hr_images/${imageId}/${method}.png`
+    );
+    const orDiffPath = path.join(
+      __dirname,
+      `../cp_image/or_diff/diff_${imageId}_${method}.png`
+    );
 
     // 1. 加载图像
-    await comparator.loadImages(
-      path.join(__dirname, HR_IMAGEPATH),
-      path.join(__dirname, rebuildHRImagePath)
-    );
+    await comparator.loadImages(hrImagePath, rebuildHRImagePath);
 
     // 2. 计算质量指标
     comparator.calculateMetrics();
-    // 3. 打印报告前添加调试信息
-    console.log("调试信息 - 计算后的指标值:", {
-      psnr: comparator.metrics.psnr.value,
-      ssim: comparator.metrics.ssim.value,
-      mse: comparator.metrics.mse.value,
-    });
 
-    // 4. 生成差异可视化图
-    let diffPath = path.join(
-      __dirname,
-      OR_DIFFOAPARH,
-      `diff_${path.basename(rebuildHRImagePath)}`
-    );
+    // 3. 生成差异可视化图
+    await comparator.generateDiffImage(orDiffPath);
 
-    await comparator.generateDiffImage(diffPath);
-    // 5. 打印专业报告
-    comparator.printReport();
+    // 4. 打印专业报告
+    comparator.printReport(imageId, method);
 
-    console.log(
-      `图像对比完成，差异图已保存为 diff_${path.basename(rebuildHRImagePath)}`
-    );
+    console.log(`图像对比完成，差异图已保存_${imageId}_${method}.png`);
   } catch (error) {
-    console.error("❌ 错误详情:", {
+    console.error(`❌ ${imageId}-${method} 错误详情:`, {
       message: error.message,
       stack: error.stack,
     });
-    process.exit(1);
   }
 }
-// 使用示例（带错误处理）
+
+// 计算平均值
+function calculateAverages() {
+  const methods = [...new Set(results.metrics.map((item) => item.method))];
+
+  methods.forEach((currentMethod) => {
+    // 重命名参数避免冲突
+    const methodResults = results.metrics.filter(
+      (item) => item.method === currentMethod
+    );
+    const count = methodResults.length;
+
+    results.summary[currentMethod] = {
+      avgPsnr:
+        methodResults.reduce(
+          (sum, item) => sum + (item.psnr === Infinity ? 100 : item.psnr),
+          0
+        ) / count,
+      avgSsim: methodResults.reduce((sum, item) => sum + item.ssim, 0) / count,
+      avgMse: methodResults.reduce((sum, item) => sum + item.mse, 0) / count,
+    };
+  });
+}
+
+// 输出CSV报告
+async function exportToCSV() {
+  try {
+    // 写入详细数据
+    await csvWriter.writeRecords(results.metrics);
+
+    // 追加平均值数据
+    const summaryWriter = createObjectCsvWriter({
+      path: path.join(__dirname, "../cp_image/metrics_report.csv"),
+      header: [
+        { id: "imageId", title: "IMAGE_ID" },
+        { id: "method", title: "METHOD" },
+        { id: "psnr", title: "PSNR(dB)" },
+        { id: "ssim", title: "SSIM" },
+        { id: "mse", title: "MSE" },
+      ],
+      append: true,
+    });
+
+    const summaryRecords = Object.entries(results.summary).map(
+      ([methodName, data]) => ({
+        imageId: "AVERAGE",
+        method: methodName, // 使用 methodName 替代 method
+        psnr: data.avgPsnr.toFixed(2),
+        ssim: data.avgSsim.toFixed(4),
+        mse: data.avgMse.toFixed(2),
+      })
+    );
+
+    await summaryWriter.writeRecords(summaryRecords);
+
+    console.log("\n✅ 评估报告已成功导出到 metrics_report.csv");
+  } catch (error) {
+    console.error("CSV导出失败:", error);
+  }
+}
+// 所有需要比较的方法
+const COMPARE_METHODS = [
+  MODEL,
+  `espcn_medium`,
+  `espcn_thick`,
+  `lanczos`,
+  `bicubic_${MN}`,
+  `bilinear`,
+  `nearest`,
+  `adaptive_bicubic_${MN}`,
+];
+
+// 主执行函数
 (async () => {
-  const comparator = new ImageComparator();
-  await compare(comparator, REBUILD_HR_IMAGEPATH_MODEL);
-  await compare(comparator, REBUILD_HR_IMAGEPATH_ESPCN_MEDIUM);
-  await compare(comparator, REBUILD_HR_IMAGEPATH_ESPCN_THICK);
-  await compare(comparator, REBUILD_HR_IMAGEPATH_LANCZOS);
-  await compare(comparator, REBUILD_HR_IMAGEPATH_BICUBIC);
-  await compare(comparator, REBUILD_HR_IMAGEPATH_BILINEAR);
-  await compare(comparator, REBUILD_HR_IMAGEPATH_NN);
-  await compare(comparator, REBUILD_HR_IMAGEPATH_ADAPTIVE_BICUBIC);
+  try {
+    // 确保HRID是数组
+    const imageIds = Array.isArray(HRID) ? HRID : [HRID];
+
+    // 并行处理所有图片和方法
+    await Promise.all(
+      imageIds.map((imageId) =>
+        Promise.all(COMPARE_METHODS.map((method) => compare(imageId, method)))
+      )
+    );
+
+    // 计算平均值
+    calculateAverages();
+
+    // 导出CSV
+    await exportToCSV();
+
+    // 打印汇总报告
+    console.log("\n════════════════════ 汇总报告 ════════════════════");
+    console.log("方法\t\t平均PSNR\t平均SSIM\t平均MSE");
+    console.log("────────────────────────────────────────────────");
+    Object.entries(results.summary).forEach(([method, data]) => {
+      console.log(
+        `${method.padEnd(16)}${data.avgPsnr
+          .toFixed(2)
+          .padStart(8)} dB\t${data.avgSsim
+          .toFixed(4)
+          .padStart(8)}\t${data.avgMse.toFixed(2).padStart(8)}`
+      );
+    });
+  } catch (error) {
+    console.error("主流程错误:", error);
+  }
 })();
